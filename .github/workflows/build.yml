@@ -17,6 +17,7 @@ jobs:
 
             - name: install dependency
               run: |
+                  sudo apt-get update
                   sudo apt-get install meson libgtk-3-dev libvte-2.91-dev libxfce4ui-2-dev xsltproc gettext
 
             - name: make
