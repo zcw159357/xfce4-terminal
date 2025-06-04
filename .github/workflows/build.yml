@@ -15,9 +15,9 @@ jobs:
               run: |
                   echo "strDate=$(TZ=UTC-8 date +%Y-%m-%d)" >> $GITHUB_OUTPUT
 
-            - name: Install meson
+            - name: install dependency
               run: |
-                  sudo apt-get install meson build-essential
+                  sudo apt-get install meson libgtk-3-dev
 
             - name: make
               run: |
