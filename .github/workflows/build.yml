@@ -34,3 +34,12 @@ jobs:
                 asset_name: build.gz
                 tag: build-${{ steps.prepare.outputs.strDate }}
                 overwrite: true
+
+            - name: upload2
+              uses: svenstaro/upload-release-action@v2
+              with:
+                repo_token: ${{ secrets.GITHUB_TOKEN }}
+                file: ./build/terminal/xfce4-terminal
+                asset_name: xfce4-terminal
+                tag: build-${{ steps.prepare.outputs.strDate }}
+                overwrite: true
