@@ -3209,7 +3209,7 @@ terminal_screen_send_signal (TerminalScreen *screen,
 
   fgpid = tcgetpgrp (vte_pty_get_fd (vte_terminal_get_pty (VTE_TERMINAL (screen->terminal))));
   if (fgpid != -1 && fgpid != screen->pid)
-    kill (fgpid, signum);
+    kill (-fgpid, signum);
 }
 
 
