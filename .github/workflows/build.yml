@@ -1,0 +1,29 @@
+name: Build
+on:
+    # Manual nightly & release
+    workflow_dispatch:
+
+run-name: xfce4-terminal
+jobs:
+    build:
+        runs-on: ubuntu-22.04
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: prepare
+              id: prepare
+              run: |
+                  echo "strDate=$(TZ=UTC-8 date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+            - name: Install meson
+              run: |
+                  sudo apt-get install meson build-essential
+
+            - name: make
+              run: |
+                  meson setup build
+                  meson compile -C build
+
+            - name: make
+              run: |
+                  ls -al build
