@@ -285,6 +285,8 @@ terminal_window_action_reset_and_clear (TerminalWindow *window);
 static void
 terminal_window_action_send_signal (SendSignalData *data);
 static gboolean
+terminal_window_action_send_sigint (TerminalWindow *window);
+static gboolean
 terminal_window_action_contents (TerminalWindow *window);
 static gboolean
 terminal_window_action_about (TerminalWindow *window);
@@ -1011,6 +1013,16 @@ static XfceGtkActionEntry action_entries[] = {
     NULL,
     NULL,
     G_CALLBACK (terminal_window_action_do_nothing),
+  },
+  {
+    TERMINAL_WINDOW_ACTION_SEND_SIGINT,
+    "<Actions>/terminal-window/send-sigint",
+    "<control>c",
+    XFCE_GTK_MENU_ITEM,
+    N_ ("Send SIGINT"),
+    NULL,
+    NULL,
+    G_CALLBACK (terminal_window_action_send_sigint),
   },
 };
 
@@ -3092,6 +3104,16 @@ terminal_window_action_send_signal (SendSignalData *data)
 {
   if (G_LIKELY (data->window->priv->active != NULL))
     terminal_screen_send_signal (data->window->priv->active, data->signal);
+}
+
+
+
+static gboolean
+terminal_window_action_send_sigint (TerminalWindow *window)
+{
+  if (G_LIKELY (window->priv->active != NULL))
+    terminal_screen_send_signal (window->priv->active, 2);
+  return TRUE;
 }
 
 
