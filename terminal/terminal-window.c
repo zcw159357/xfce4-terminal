@@ -285,7 +285,7 @@ terminal_window_action_reset_and_clear (TerminalWindow *window);
 static void
 terminal_window_action_send_signal (SendSignalData *data);
 static gboolean
-terminal_window_action_send_sigint (TerminalWindow *window);
+terminal_window_action_send_intr (TerminalWindow *window);
 static gboolean
 terminal_window_action_contents (TerminalWindow *window);
 static gboolean
@@ -1015,14 +1015,14 @@ static XfceGtkActionEntry action_entries[] = {
     G_CALLBACK (terminal_window_action_do_nothing),
   },
   {
-    TERMINAL_WINDOW_ACTION_SEND_SIGINT,
-    "<Actions>/terminal-window/send-sigint",
+    TERMINAL_WINDOW_ACTION_SEND_INTR,
+    "<Actions>/terminal-window/send-intr",
     "<control>c",
     XFCE_GTK_MENU_ITEM,
-    N_ ("Send SIGINT"),
+    N_ ("Send intr(^C)"),
     NULL,
     NULL,
-    G_CALLBACK (terminal_window_action_send_sigint),
+    G_CALLBACK (terminal_window_action_send_intr),
   },
 };
 
@@ -3109,10 +3109,10 @@ terminal_window_action_send_signal (SendSignalData *data)
 
 
 static gboolean
-terminal_window_action_send_sigint (TerminalWindow *window)
+terminal_window_action_send_intr (TerminalWindow *window)
 {
   if (G_LIKELY (window->priv->active != NULL))
-    terminal_screen_send_signal (window->priv->active, 2);
+    terminal_screen_feed_text (window->priv->active, "\x03");
   return TRUE;
 }
 
