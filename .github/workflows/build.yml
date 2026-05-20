@@ -21,8 +21,12 @@ jobs:
                   sudo apt-get install meson libgtk-3-dev libvte-2.91-dev libxfce4ui-2-dev xsltproc gettext docbook-xsl libgtk-layer-shell-dev
 
             - name: make
+              id: make
               run: |
                   meson setup build
+                  VERSION=$(meson introspect --projectinfo build | jq -r '.version')
+                  echo "Found version: $VERSION"
+                  echo "version=$VERSION" >> "$GITHUB_OUTPUT"
                   meson compile -C build
                   tar -czf build.tar.gz build/
 
@@ -32,7 +36,7 @@ jobs:
                 repo_token: ${{ secrets.GITHUB_TOKEN }}
                 file: ./build.tar.gz
                 asset_name: build.gz
-                tag: build-${{ steps.prepare.outputs.strDate }}
+                tag: ${{ steps.make.outputs.version }}-build-${{ steps.prepare.outputs.strDate }}
                 overwrite: true
 
             - name: upload2
@@ -41,5 +45,5 @@ jobs:
                 repo_token: ${{ secrets.GITHUB_TOKEN }}
                 file: ./build/terminal/xfce4-terminal
                 asset_name: xfce4-terminal
-                tag: build-${{ steps.prepare.outputs.strDate }}
+                tag: ${{ steps.make.outputs.version }}-build-${{ steps.prepare.outputs.strDate }}
                 overwrite: true
