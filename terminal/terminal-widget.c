@@ -17,10 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #ifdef HAVE_MEMORY_H
 #include <memory.h>
 #endif
@@ -423,12 +419,15 @@ terminal_widget_context_menu_copy (TerminalWidget *widget,
           wlink = modified_wlink;
         }
 
-      /* copy the URI to "CLIPBOARD" */
-      clipboard = gtk_clipboard_get_for_display (display, GDK_SELECTION_CLIPBOARD);
-      gtk_clipboard_set_text (clipboard, wlink, -1);
+      // The order of setting the clipboard does matter, see:
+      // https://gitlab.xfce.org/apps/xfce4-terminal/-/issues/367
 
       /* copy the URI to "PRIMARY" */
       clipboard = gtk_clipboard_get_for_display (display, GDK_SELECTION_PRIMARY);
+      gtk_clipboard_set_text (clipboard, wlink, -1);
+
+      /* copy the URI to "CLIPBOARD" */
+      clipboard = gtk_clipboard_get_for_display (display, GDK_SELECTION_CLIPBOARD);
       gtk_clipboard_set_text (clipboard, wlink, -1);
 
       g_free (modified_wlink);
@@ -575,6 +574,8 @@ terminal_widget_button_press_event (GtkWidget *widget,
 {
   const GdkModifierType modifiers = gtk_accelerator_get_default_mod_mask ();
   gboolean committed = FALSE;
+  gboolean intercept = FALSE;
+  gboolean handled = FALSE;
   gboolean middle_click_opens_uri;
   guint signal_id = 0;
 
@@ -597,29 +598,40 @@ terminal_widget_button_press_event (GtkWidget *widget,
             }
         }
 
-      /* intercept middle button click that would paste the selection */
-      if (event->button == 2)
+      if (event->button == 3)
         {
-          g_signal_emit (G_OBJECT (widget), widget_signals[PASTE_SELECTION_REQUEST], 0, NULL);
-          return TRUE;
-        }
-      else if (event->button == 3)
-        {
-          signal_id = g_signal_connect (G_OBJECT (widget), "commit",
-                                        G_CALLBACK (terminal_widget_commit), &committed);
+          if ((event->state & modifiers) == GDK_SHIFT_MASK)
+            intercept = TRUE;
+          else
+            signal_id = g_signal_connect (G_OBJECT (widget), "commit",
+                                          G_CALLBACK (terminal_widget_commit), &committed);
         }
     }
 
-  (*GTK_WIDGET_CLASS (terminal_widget_parent_class)->button_press_event) (widget, event);
+  if (!intercept)
+    handled = (*GTK_WIDGET_CLASS (terminal_widget_parent_class)->button_press_event) (widget, event);
 
-  if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
+  if (event->button == 2 && event->type == GDK_BUTTON_PRESS)
     {
-      g_signal_handler_disconnect (G_OBJECT (widget), signal_id);
+      /* if handled is true, it means the VteTerminal's handler either already
+       * pasted the selection on its own or passed the middle button click event
+       * to the terminal application. In both cases we are done. Otherwise,
+       * we need to paste the selection now.
+       */
+      if (!handled)
+        {
+          g_signal_emit (G_OBJECT (widget), widget_signals[PASTE_SELECTION_REQUEST], 0, NULL);
+        }
+    }
+  else if (event->button == 3 && event->type == GDK_BUTTON_PRESS)
+    {
+      if (signal_id != 0)
+        g_signal_handler_disconnect (G_OBJECT (widget), signal_id);
 
       /* no data (mouse actions) was committed to the terminal application
        * which means, we can safely popup a context menu now.
        */
-      if (!committed || (event->state & modifiers) == GDK_SHIFT_MASK)
+      if (!committed)
         {
           TerminalRightClickAction action;
 
@@ -738,12 +750,27 @@ terminal_widget_drag_data_received (GtkWidget *widget,
               filename = g_filename_from_uri (uris[n], NULL, NULL);
               if (G_LIKELY (filename != NULL))
                 {
+                  /* exclude non-ASCII characters from escaping below */
+                  const gchar *excluded =
+                    "\"\\"
+                    "\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f"
+                    "\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f"
+                    "\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf"
+                    "\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf"
+                    "\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf"
+                    "\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf"
+                    "\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef"
+                    "\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff";
+
                   /* release the file:-URI */
                   g_free (uris[n]);
 
                   /* quote the file name (for the shell) */
                   uris[n] = g_shell_quote (filename);
                   g_free (filename);
+                  filename = g_strescape (uris[n], excluded);
+                  g_free (uris[n]);
+                  uris[n] = filename;
                 }
             }
 
@@ -1059,6 +1086,8 @@ terminal_widget_get_link (TerminalWidget *widget,
 
           match_data = pcre2_match_data_create_from_pattern_8 (widget->regex_pcre[i], NULL);
           rc = pcre2_match_8 (widget->regex_pcre[i], (PCRE2_SPTR8) uri, strlen (uri), 0, 0, match_data, NULL);
+          pcre2_match_data_free_8 (match_data);
+
           if (rc >= 0)
             {
               result.uri = uri;
@@ -1067,9 +1096,8 @@ terminal_widget_get_link (TerminalWidget *widget,
             }
           else if (rc != PCRE2_ERROR_NOMATCH)
             g_warning ("pcre2_match returned error code \"%d\".", rc);
-
-          pcre2_match_data_free_8 (match_data);
         }
+      g_free (uri);
     }
 
   /* check if we have a regex match */
@@ -1085,11 +1113,8 @@ terminal_widget_get_link (TerminalWidget *widget,
               return result;
             }
         }
+      g_free (uri);
     }
-
-  /* freeing the uri if regex didn't match */
-  if (uri != NULL && result.uri == NULL)
-    g_free (uri);
 
   return result;
 }

@@ -17,10 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -173,10 +169,12 @@ static gboolean
 terminal_window_notebook_button_release_event (GtkNotebook *notebook,
                                                GdkEventButton *event,
                                                TerminalWindow *window);
+#if !LIBXFCE4UI_CHECK_VERSION(4, 21, 1)
 static gboolean
 terminal_window_notebook_scroll_event (GtkNotebook *notebook,
                                        GdkEventScroll *event,
                                        TerminalWindow *window);
+#endif
 static void
 terminal_window_notebook_drag_data_received (GtkWidget *widget,
                                              GdkDragContext *context,
@@ -1169,7 +1167,11 @@ terminal_window_init (TerminalWindow *window)
 
   /* allocate the notebook for the terminal screens */
   g_object_get (G_OBJECT (window->priv->preferences), "misc-always-show-tabs", &always_show_tabs, NULL);
+#if LIBXFCE4UI_CHECK_VERSION(4, 21, 1)
+  window->priv->notebook = g_object_new (XFCE_TYPE_NOTEBOOK,
+#else
   window->priv->notebook = g_object_new (GTK_TYPE_NOTEBOOK,
+#endif
                                          "scrollable", TRUE,
                                          "show-border", FALSE,
                                          "show-tabs", always_show_tabs,
@@ -1198,8 +1200,10 @@ terminal_window_init (TerminalWindow *window)
                     G_CALLBACK (terminal_window_notebook_button_press_event), window);
   g_signal_connect (G_OBJECT (window->priv->notebook), "button-release-event",
                     G_CALLBACK (terminal_window_notebook_button_release_event), window);
+#if !LIBXFCE4UI_CHECK_VERSION(4, 21, 1)
   g_signal_connect (G_OBJECT (window->priv->notebook), "scroll-event",
                     G_CALLBACK (terminal_window_notebook_scroll_event), window);
+#endif
 
   gtk_box_pack_start (GTK_BOX (window->priv->vbox), window->menubar, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (window->priv->vbox), window->toolbar, FALSE, FALSE, 0);
@@ -1941,6 +1945,7 @@ terminal_window_notebook_button_release_event (GtkNotebook *notebook,
 
 
 
+#if !LIBXFCE4UI_CHECK_VERSION(4, 21, 1)
 static gboolean
 terminal_window_notebook_scroll_event (GtkNotebook *notebook,
                                        GdkEventScroll *event,
@@ -1987,6 +1992,7 @@ terminal_window_notebook_scroll_event (GtkNotebook *notebook,
 
   return FALSE;
 }
+#endif
 
 
 

@@ -1,7 +1,7 @@
 project(
   'xfce4-terminal',
   'c',
-version : '1.1.5-dev',
+version : '1.2.0',
   license : 'GPL-2.0-or-later',
   meson_version : '>= 0.54.0',
   default_options : ['c_std=gnu11', 'buildtype=debugoptimized', 'warning_level=2']
@@ -9,7 +9,7 @@ version : '1.1.5-dev',
 
 project_namespace = 'apps'
 pkgdatadir = get_option('prefix') / get_option('datadir') / meson.project_name()
-copyright_year = '2025'
+copyright_year = '2026'
 terminal_version_dbus = '5'
 
 cc = meson.get_compiler('c')
@@ -40,8 +40,6 @@ libxfce4ui = dependency('libxfce4ui-2', version: dependency_versions['libxfce4ui
 libxfce4kbd = dependency('libxfce4kbd-private-3', version: dependency_versions['libxfce4ui'])
 libxfce4util = dependency('libxfce4util-1.0', version: dependency_versions['libxfce4util'])
 xfconf = dependency('libxfconf-0', version: dependency_versions['xfconf'])
-
-xsltproc = find_program('xsltproc', required: true)
 
 # Feature: 'x11'
 x11_deps = []
@@ -79,6 +77,8 @@ endif
 if not enable_x11 and not enable_wayland
   error('At least one of the X11 and Wayland backends must be enabled')
 endif
+
+xsltproc = find_program('xsltproc', required: get_option('doc'))
 
 headers = [
   'sys/types.h',
@@ -144,7 +144,7 @@ if get_option('debug') and optimization in ['0', 'g']
     '-DDEBUG_TRACE=1',
     '-DG_ENABLE_DEBUG',
   ]
-elif optimization in ['3', 'minsize']
+elif optimization in ['3', 's']
   extra_cflags += [
     '-DNDEBUG',
     '-DG_DISABLE_CAST_CHECKS',
@@ -219,7 +219,9 @@ foreach file : desktop_files
 endforeach
 
 subdir('colorschemes')
-subdir('doc')
+if get_option('doc')
+  subdir('doc')
+endif
 subdir('icons')
 subdir('po')
 subdir('terminal')
